@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>AsistiQR</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f8f9fb;
+      margin: 0;
+      padding: 0;
+      color: #333;
+    }
+    header {
+      background: linear-gradient(90deg, #0B1B55, #233b8a);
+      color: white;
+      padding: 15px 30px;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    header img {
+      height: 65px;
+      margin-right: 15px;
+      background: white;
+      border-radius: 8px;
+      padding: 3px;
+    }
+    header h1 {
+      font-size: 22px;
+      margin: 0;
+    }
+    .container {
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 25px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    h2 {
+      margin-top: 0;
+      color: #0B1B55;
+    }
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    #msg {
+      margin-top: 15px;
+      font-weight: bold;
+      font-size: 18px;
+      text-align: center;
+      padding: 10px;
+      border-radius: 8px;
+      display: none;
+    }
+    #msg.presente { background: #e0f2f1; color: #00695c; border: 1px solid #004d40; }
+    #msg.tardanza { background: #fff3e0; color: #e65100; border: 1px solid #ef6c00; }
+    #msg.error { background: #ffebee; color: #b71c1c; border: 1px solid #c62828; }
+    label {
+      margin-right: 10px;
+    }
+    input, button {
+      padding: 8px 12px;
+      margin: 5px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+    button {
+      background: #0B1B55;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.1s;
+    }
+    button:hover {
+      background: #233b8a;
+      transform: scale(1.05);
+    }
+    footer {
+      text-align: center;
+      font-size: 12px;
+      padding: 15px;
+      color: #555;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="LOGO COPRODELI SAN MARTIN.png" alt="Logo IE San Martín">
+    <h1>Institución Educativa Coprodeli San Martín</h1>
+  </header>
+
+  <div class="container">
+    <!-- Escáner -->
+    <div class="card">
+      <h2>Registro de Asistencia</h2>
+      <div id="reader"></div>
+      <p id="msg"></p>
+    </div>
+
+    <!-- Reportes -->
+    <div class="card">
+      <h2>Generar Reportes</h2>
+      <label>Desde: <input type="date" id="rp_from"></label>
+      <label>Hasta: <input type="date" id="rp_to"></label><br>
+      <label>Grado: <input type="text" id="rp_grado" placeholder="Ej: 2"></label>
+      <label>Nivel: <input type="text" id="rp_nivel" placeholder="Ej: Secundaria"></label><br>
+      <button onclick="downloadReport('report_pdf','pdf')">📄 Descargar PDF</button>
+      <button onclick="downloadReport('report_xlsx','xlsx')">📊 Descargar Excel</button>
+    </div>
+  </div>
+
+  <footer>
+    © 2025 Institución Educativa Coprodeli San Martín | Sistema de Asistencia con QR
+  </footer>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbx13X-3EJvijWWtnzJF7ILAFwi-pbpBhsZdmd49x01uo2Mv6DM5vPiR_SuCwioF1BKq/exec";
+
+    function apiPost(params){
+      return fetch(API_URL+"?action=register", {
+        method:"POST", body:new URLSearchParams(params)
+      }).then(r=>r.json());
+    }
+
+    function downloadReport(action, ext){
+      const from=document.getElementById('rp_from').value;
+      const to=document.getElementById('rp_to').value;
+      const grado=document.getElementById('rp_grado').value;
+      const nivel=document.getElementById('rp_nivel').value;
+      const url = `${API_URL}?action=${action}&from=${from}&to=${to}&grado=${grado}&nivel=${nivel}`;
+      const a=document.createElement('a'); a.href=url; a.download=`reporte.${ext}`;
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+
+    function onScanSuccess(decodedText){
+      apiPost({codigo:decodedText}).then(res=>{
+        let msg=document.getElementById("msg");
+        if(res.ok){
+          msg.style.display="block";
+          msg.className = res.estado === "Presente" ? "presente" : "tardanza";
+          msg.innerText = `${res.alumno.nombre} → ${res.estado} (${res.hora})`;
+        }else{
+          msg.style.display="block";
+          msg.className="error";
+          msg.innerText = "⚠ " + res.msg;
+        }
+      });
+    }
+
+    new Html5Qrcode("reader").start(
+      { facingMode:"environment" }, 
+      { fps:10, qrbox:250 }, 
+      onScanSuccess
+    );
+  </script>
+</body>
+</html>
